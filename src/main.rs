@@ -6,6 +6,9 @@ const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
 
 fn main() {
+
+    println!("Hello, world!");
+
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
     let mut window = Window::new(
@@ -22,11 +25,9 @@ fn main() {
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        let mut count = 0;
 
-        for i in buffer.iter_mut() {
-            *i = count; // write something more funny here!
-            count += 1;
+        for (count, i) in buffer.iter_mut().enumerate() {
+            *i = count as u32; // write something more funny here!
         }
 
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
