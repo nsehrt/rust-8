@@ -10,7 +10,7 @@ pub struct Chip8{
     vram: [u8; 64*32],
     registers: [u8; 16],
     stack: [u16; 16],
-    keypad: [u16; 16],
+    pub keypad: [u16; 16],
 
     opcode: u16,
     pc: u16,
@@ -73,13 +73,13 @@ impl Chip8{
             0xF0, 0x80, 0xF0, 0x80, 0x80  // F
         ];
 
-        self.memory[0x50..160].clone_from_slice(&fontset[..80]); // maybe wrong address
+        self.memory[0x50..160].clone_from_slice(&fontset[..80]);
         self.draw_flag = true;
     }
 
     pub fn load_rom(&mut self, rom: &str) {
 
-        let bytes = std::fs::read(rom).expect("failed to load rom!");
+        let bytes = std::fs::read(rom).expect("failed to load rom! invalid path or no permission.");
         self.memory[0x200..(0x200+bytes.len())].clone_from_slice(&bytes[..]);
     }
 
@@ -87,6 +87,8 @@ impl Chip8{
     pub fn step(&mut self) {
         // fetch op code
         self.opcode = (self.memory[self.pc as usize] as u16) << 8 | self.memory[self.pc as usize + 1] as u16;
+
+        //println!(":: {:#02x}", self.opcode);
 
         // decode and execute op code
         match self.opcode & 0xF000 {
@@ -115,11 +117,11 @@ impl Chip8{
 
             },
 
-            0x1000 => {
+            0x1000 => { // jmp 1XXX
                 self.pc = self.opcode & 0x0FFF;
             },
 
-            0x2000 => { // call subroutine at 0xxx
+            0x2000 => { // call subroutine at 2XXX
                 self.stack[self.sp as usize] = self.pc;
                 self.sp += 1;
                 self.pc = self.opcode & 0x0FFF;
@@ -155,7 +157,7 @@ impl Chip8{
             },
 
             0x7000 => { // add XX to VX
-                self.registers[((self.opcode & 0x0F00) >> 8) as usize] += (self.opcode & 0x00FF) as u8;
+                self.registers[((self.opcode & 0x0F00) >> 8) as usize] = (Wrapping(self.registers[((self.opcode & 0x0F00) >> 8) as usize]) +  Wrapping((self.opcode & 0x00FF) as u8)).0;
                 self.pc += 2;
             },
 
@@ -189,7 +191,7 @@ impl Chip8{
                         }else{
                             self.registers[0xF] = 0;
                         }
-                        self.registers[((self.opcode & 0x0F00) >> 8) as usize] += self.registers[((self.opcode & 0x00F0) >> 4) as usize];
+                        self.registers[((self.opcode & 0x0F00) >> 8) as usize] = (Wrapping(self.registers[((self.opcode & 0x0F00) >> 8) as usize]) + Wrapping(self.registers[((self.opcode & 0x00F0) >> 4) as usize])).0;
                         self.pc += 2;
                     },
 
@@ -199,7 +201,7 @@ impl Chip8{
                         }else{
                             self.registers[0xF] = 0;
                         }
-                        self.registers[((self.opcode & 0x0F00) >> 8) as usize] -= self.registers[((self.opcode & 0x00F0) >> 4) as usize];
+                        self.registers[((self.opcode & 0x0F00) >> 8) as usize] = (Wrapping(self.registers[((self.opcode & 0x0F00) >> 8) as usize]) - Wrapping(self.registers[((self.opcode & 0x00F0) >> 4) as usize])).0;
                         self.pc += 2;  
                     },
 
@@ -215,6 +217,9 @@ impl Chip8{
                         }else{
                             self.registers[0xF] = 1;
                         }
+
+                        self.registers[((self.opcode & 0x0F00) >> 8) as usize] = (Wrapping(self.registers[((self.opcode & 0x00F0) >> 4) as usize]) - Wrapping(self.registers[((self.opcode & 0x0F00) >> 8) as usize])).0;
+
                         self.pc += 2;
                     },
 
@@ -268,8 +273,10 @@ impl Chip8{
                         if (pixel & (0x80 >> j)) != 0{
                             let wrap_1 = Wrapping(y as u16 + i);
                             let wrap_2 = Wrapping(64 as u16);
-                            let index = x + j + (wrap_1 * wrap_2).0;
-
+                            let mut index = x + j + (wrap_1 * wrap_2).0;
+                            if index > 2047{
+                                index %= 2047;
+                            }
                             if self.vram[index as usize] == 1 {
                                 self.registers[0xF] = 1;
                             }
@@ -288,7 +295,7 @@ impl Chip8{
                 match self.opcode & 0x00FF {
 
                     0x009E => { // skip next instruction if key stored in vx is pressed
-                        if self.registers[((self.opcode & 0x0F00) >> 8) as usize] != 0{
+                        if self.keypad[self.registers[((self.opcode & 0x0F00) >> 8) as usize] as usize] != 0 {
                             self.pc += 4;
                         }else{
                             self.pc += 2;
@@ -296,7 +303,7 @@ impl Chip8{
                     },
 
                     0x00A1 => { // skip next instruction if key stored in vx is not pressed
-                        if self.registers[((self.opcode & 0x0F00) >> 8) as usize] == 0{
+                        if self.keypad[self.registers[((self.opcode & 0x0F00) >> 8) as usize] as usize] == 0{
                             self.pc += 4;
                         }else{
                             self.pc += 2;
@@ -363,25 +370,28 @@ impl Chip8{
                     0x0033 => { // store bin coded representation of VX at index_register (+1, +2)
                         self.memory[self.index_reg as usize] = self.registers[((self.opcode & 0x0F00) >> 8) as usize] / 100;
                         self.memory[self.index_reg as usize + 1] = (self.registers[((self.opcode & 0x0F00) >> 8) as usize] / 10) % 10;
-                        self.memory[self.index_reg as usize + 2] = (self.registers[((self.opcode & 0x0F00) >> 8) as usize] % 100) % 10;
+                        self.memory[self.index_reg as usize + 2] = self.registers[((self.opcode & 0x0F00) >> 8) as usize] % 100 % 10;
+
                         self.pc += 2;
                     },
 
-                    0x0055 => { // store V0 to VX in memor stating with index_register
-                        for i in 0..((self.opcode & 0x0F00) >> 8) {
-                            self.memory[(self.index_reg + i) as usize] = self.registers[i as usize];
+                    0x0055 => { // store V0 to VX in memory starting with index_register
+                        let x: usize = ((self.opcode & 0x0F00) >> 8) as usize;
+                        
+                        for i in 0..(x + 1){
+                            self.memory[self.index_reg as usize + i] = self.registers[i];
                         }
 
-                        self.index_reg = ((self.opcode & 0x0F00) >> 8) + 1; 
                         self.pc += 2;
                     },
 
                     0x0065 => { // fill V0 to VX with values from memory starting on index_register
-                        for i in 0..((self.opcode & 0x0F00) >> 8) {
-                            self.registers[i as usize] = self.memory[(self.index_reg + i) as usize];
+                        let x: usize = ((self.opcode & 0x0F00) >> 8) as usize;
+                        
+                        for i in 0..(x + 1){
+                            self.registers[i] = self.memory[self.index_reg as usize + i];
                         }
 
-                        self.index_reg = ((self.opcode & 0x0F00) >> 8) + 1; 
                         self.pc += 2;
                     },
 
@@ -412,9 +422,8 @@ impl Chip8{
         self.draw_flag
     }
 
-    pub fn update_keys(&mut self) {
-
-
+    pub fn reset_draw_flag(&mut self) {
+        self.draw_flag = false;
     }
 
     pub fn get_vram(&self, x: usize, y: usize) -> bool {
