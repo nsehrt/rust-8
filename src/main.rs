@@ -75,6 +75,7 @@ fn main() {
         if rust8.is_draw_flag() {
             for (count, i) in buffer.iter_mut().enumerate() {
 
+                // first to normalized coordinates, than map to vram size
                 let x_coord = (count % WIDTH) as f64 / WIDTH as f64 * 64.0;
                 let y_coord = (count / WIDTH) as f64 / HEIGHT as f64 * 32.0;
 
