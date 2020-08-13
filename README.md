@@ -13,5 +13,4 @@ rust-8.exe rom/INVADERS
 ```
 
 
-
-![scr](C:\rust\rust-8\screenshot\scr.png)
+![](https://github.com/nsehrt/rust-8/blob/master/screenshot/scr.png)
