@@ -196,17 +196,17 @@ impl Chip8{
                     },
 
                     0x0005 => { // subtract VY from VX. carry flag used as borrow indicator
-                        if self.registers[((self.opcode & 0x00F0) >> 4) as usize] <= self.registers[((self.opcode & 0x0F00) >> 8) as usize]{
-                            self.registers[0xF] = 1;
-                        }else{
+                        if self.registers[((self.opcode & 0x00F0) >> 4) as usize] > self.registers[((self.opcode & 0x0F00) >> 8) as usize]{
                             self.registers[0xF] = 0;
+                        }else{
+                            self.registers[0xF] = 1;
                         }
                         self.registers[((self.opcode & 0x0F00) >> 8) as usize] = (Wrapping(self.registers[((self.opcode & 0x0F00) >> 8) as usize]) - Wrapping(self.registers[((self.opcode & 0x00F0) >> 4) as usize])).0;
                         self.pc += 2;  
                     },
 
                     0x0006 => { // shift VX right by one. 
-                        self.registers[0xF] = self.registers[((self.opcode & 0x0F00) >> 8) as usize] &0x1;
+                        self.registers[0xF] = self.registers[((self.opcode & 0x0F00) >> 8) as usize] & 0x1;
                         self.registers[((self.opcode & 0x0F00) >> 8) as usize] >>= 1;
                         self.pc += 2;
                     },
@@ -248,7 +248,7 @@ impl Chip8{
             },
 
             0xB000 => { // jump to address XXX + V0
-                self.pc = (self.opcode & 0x0FFF) + self.registers[0x0] as u16;
+                self.pc = (self.opcode & 0x0FFF) + self.registers[0] as u16;
             },
 
             0xC000 => { // set VX to a random number & XX
@@ -352,7 +352,7 @@ impl Chip8{
                     },
 
                     0x001E => { // add VX to index register
-                        if self.index_reg + self.registers[((self.opcode & 0x0F00) >> 8) as usize] as u16 > 0xFFF {
+                        if (self.index_reg + self.registers[((self.opcode & 0x0F00) >> 8) as usize] as u16) > 0xFFF {
                             self.registers[0xF] = 1;
                         }else{
                             self.registers[0xF] = 0;
@@ -381,7 +381,7 @@ impl Chip8{
                         for i in 0..(x + 1){
                             self.memory[self.index_reg as usize + i] = self.registers[i];
                         }
-
+                        //self.index_reg += x as u16 + 1;
                         self.pc += 2;
                     },
 
@@ -391,7 +391,7 @@ impl Chip8{
                         for i in 0..(x + 1){
                             self.registers[i] = self.memory[self.index_reg as usize + i];
                         }
-
+                        //self.index_reg += x as u16 + 1;
                         self.pc += 2;
                     },
 

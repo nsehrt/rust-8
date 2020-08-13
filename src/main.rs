@@ -94,18 +94,38 @@ fn main() {
             .update_with_buffer(&buffer, WIDTH, HEIGHT)
             .unwrap();
 
-            //delay
-            let delta = Instant::now().checked_duration_since(start_time).unwrap();
-
-            if delta < Duration::from_millis(16) {
-                let sleep_time = Duration::from_millis(16) - delta;
-                spin_sleep::sleep(sleep_time);
-            }
-
-            start_time = Instant::now();
         }else {
             window.update();
         }
 
+
+        //delay
+
+        if _instructions_processed % 8 == 0 {
+
+            let delta = Instant::now().checked_duration_since(start_time).unwrap();
+
+            if delta < Duration::from_millis(12) {
+                let sleep_time = Duration::from_millis(12) - delta;
+                spin_sleep::sleep(sleep_time);
+            }
+    
+            start_time = Instant::now();
+
+        }
+
+    }
+
+
+}
+
+
+
+#[cfg(test)]
+mod tests{
+
+    #[test]
+    fn example(){
+        assert_eq!(2+2, 4);
     }
 }
