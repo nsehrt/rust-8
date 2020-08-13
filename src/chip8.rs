@@ -275,7 +275,7 @@ impl Chip8{
                             let wrap_2 = Wrapping(64 as u16);
                             let mut index = x + j + (wrap_1 * wrap_2).0;
                             if index > 2047{
-                                index %= 2047;
+                                index %= 2048;
                             }
                             if self.vram[index as usize] == 1 {
                                 self.registers[0xF] = 1;
